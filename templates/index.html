@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <title>AWS DA-2 Event driven serverless architecture using dynamodb,lambda and s3</title>
+  <!-- Link to CSS in static folder -->
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <h1>Event Driven Serverless Architecture using DynamoDB,Lambda and S3</h1>
+  {% if uploaded %}
+  <div class="small" id="upload-banner" style="margin-top:10px; padding:8px; border-radius:6px; background:rgba(59,130,246,0.08); color:var(--text); border:1px solid rgba(59,130,246,0.12);">File uploaded — the page will refresh in <span id="countdown">10</span>s to show DynamoDB updates.</div>
+  <script>
+    // Countdown and reload once without the uploaded flag
+    (function(){
+      var seconds = 10;
+      var display = document.getElementById('countdown');
+      var interval = setInterval(function(){
+        seconds -= 1;
+        if(display) display.textContent = seconds;
+        if(seconds <= 0){
+          clearInterval(interval);
+          // Remove 'uploaded' param and reload
+          var url = new URL(window.location.href);
+          url.searchParams.delete('uploaded');
+          window.location.href = url.toString();
+        }
+      }, 1000);
+    })();
+  </script>
+  {% endif %}
+  <form method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" required>
+    <button type="submit">Upload</button>
+  </form>
+
+  <h2>Uploaded Files</h2>
+  <table>
+    <tr>
+      <th>FileName</th>
+      <th>Size (bytes)</th>
+      <th>UploadTime</th>
+    </tr>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.FileName }}</td>
+      <td>{{ item.Size }}</td>
+      <td>{{ item.UploadTime }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

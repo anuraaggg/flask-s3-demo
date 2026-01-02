@@ -1,0 +1,116 @@
+:root{
+    --bg:#0f1720; /* very dark blue-gray */
+    --panel:#111827; /* slightly lighter panel */
+    --muted:#9ca3af; /* muted text */
+    --text:#e6eef6; /* main text */
+    --accent:#3b82f6; /* blue accent */
+    --accent-strong:#2563eb;
+    --row:#0b1220;
+    --border: rgba(255,255,255,0.06);
+}
+
+body {
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    margin: 36px;
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+h1, h2 {
+    color: var(--text);
+    margin: 0 0 12px 0;
+}
+
+form {
+    margin-bottom: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+input[type="file"] {
+    padding: 6px 8px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 6px;
+}
+
+/* Style the internal file selector button and add spacing between button and filename */
+input[type="file"]::file-selector-button {
+    margin-right: 12px; /* space between the button and the filename text */
+    padding: 6px 10px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* WebKit fallback for older browsers */
+input[type="file"]::-webkit-file-upload-button {
+    margin-right: 12px;
+    padding: 6px 10px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button {
+    padding: 8px 14px;
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.12);
+}
+
+button:hover {
+    background-color: var(--accent-strong);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+table th, table td {
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+table th {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+table tr:nth-child(even) td{
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+}
+
+table tr:hover td{
+    background: rgba(59,130,246,0.03);
+}
+
+a {
+    color: var(--accent);
+}
+
+.muted { color: var(--muted); }
+
+.container { max-width: 980px; margin: 0 auto; }
+
+/* small utility */
+.small { font-size: 13px; color: var(--muted); }

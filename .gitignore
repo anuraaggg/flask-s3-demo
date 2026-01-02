@@ -1,0 +1,35 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging / build
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Logs
+*.log
+
+# IDE / tooling
+.vscode/
+.idea/
+
+# Flask / local data
+instance/
+
+# Environment files
+.env
+.env.*
+
+# OS-specific
+.DS_Store
+Thumbs.db

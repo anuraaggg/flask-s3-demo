@@ -1,13 +1,20 @@
 from flask import Flask, request, render_template, redirect, url_for
 import boto3
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
+# Load configuration from environment variables
+S3_BUCKET = os.getenv('S3_BUCKET')
+DYNAMO_TABLE = os.getenv('DYNAMO_TABLE', 'UploadedFiles')
+REGION = os.getenv('AWS_REGION', 'ap-south-1')
 
-S3_BUCKET = 'aws-project-da2'
-DYNAMO_TABLE = 'UploadedFiles'
-REGION = 'ap-south-1'  
+if not S3_BUCKET:
+    raise ValueError("S3_BUCKET environment variable is not set")
 
 
 s3 = boto3.client('s3', region_name=REGION)

@@ -39,10 +39,13 @@
     })();
   </script>
   {% endif %}
-  <form method="POST" enctype="multipart/form-data">
+  <form method="POST" enctype="multipart/form-data" class="upload-form">
     {{ csrf_token() }}
-    <input type="file" name="file" required>
-    <button type="submit">Upload</button>
+    <div class="form-group">
+      <input type="file" name="file" id="file-input" required>
+      <button type="submit" class="btn btn-primary">Upload File</button>
+    </div>
+    <p class="form-hint">Max file size: {{ max_file_size_mb }}MB | Allowed: {{ allowed_extensions }}</p>
   </form>
 
   <h2>Uploaded Files</h2>

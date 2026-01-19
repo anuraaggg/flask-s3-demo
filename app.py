@@ -12,12 +12,17 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_FILE_SIZE', 5242880))  # Request size limit
 
 # Setup CSRF protection
 csrf = CSRFProtect(app)
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging with timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
 
 # Load configuration from environment variables
@@ -34,6 +39,36 @@ if not S3_BUCKET:
 s3 = boto3.client('s3', region_name=REGION)
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 table = dynamodb.Table(DYNAMO_TABLE)
+
+
+def validate_aws_connection():
+    """Validate AWS S3 and DynamoDB connectivity at startup."""
+    try:
+        # Check S3 bucket exists
+        s3.head_bucket(Bucket=S3_BUCKET)
+        logger.info(f'✓ S3 bucket "{S3_BUCKET}" is accessible')
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        logger.error(f'✗ S3 bucket check failed: {error_code}')
+        raise RuntimeError(f'Cannot access S3 bucket: {error_code}')
+    
+    try:
+        # Check DynamoDB table exists
+        table.load()
+        logger.info(f'✓ DynamoDB table "{DYNAMO_TABLE}" is accessible')
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        logger.error(f'✗ DynamoDB table check failed: {error_code}')
+        raise RuntimeError(f'Cannot access DynamoDB table: {error_code}')
+
+
+# Validate AWS connection on startup
+try:
+    validate_aws_connection()
+    logger.info('AWS connection validation passed')
+except RuntimeError as e:
+    logger.error(f'Startup validation failed: {e}')
+    raise
 
 
 def allowed_file(filename):
@@ -117,7 +152,14 @@ def index():
     
     # Check for uploaded flag in query string to trigger client-side reload
     uploaded_flag = request.args.get('uploaded')
-    return render_template('index.html', items=items, uploaded=bool(uploaded_flag))
+    max_file_size_mb = MAX_FILE_SIZE / 1024 / 1024
+    return render_template(
+        'index.html',
+        items=items,
+        uploaded=bool(uploaded_flag),
+        max_file_size_mb=f'{max_file_size_mb:.1f}',
+        allowed_extensions=', '.join(sorted(ALLOWED_EXTENSIONS))
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

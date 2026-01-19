@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, redirect, url_for, flash
+from flask_wtf.csrf import CSRFProtect
 import boto3
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -11,6 +12,9 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key')
+
+# Setup CSRF protection
+csrf = CSRFProtect(app)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -71,11 +75,27 @@ def index():
             # Upload to S3
             s3.upload_fileobj(uploaded_file, S3_BUCKET, filename)
             logger.info(f'Successfully uploaded {filename} to S3 bucket {S3_BUCKET}')
+            
+            # Store metadata in DynamoDB
+            try:
+                table.put_item(
+                    Item={
+                        'FileName': filename,
+                        'Size': file_size,
+                        'UploadTime': datetime.now().isoformat()
+                    }
+                )
+                logger.info(f'Stored metadata for {filename} in DynamoDB')
+            except Exception as e:
+                logger.error(f'Failed to store metadata in DynamoDB: {e}')
+                flash('File uploaded to S3 but failed to store metadata', 'warning')
+                return redirect(url_for('index'))
+            
             flash(f'File {filename} uploaded successfully', 'success')
             return redirect(url_for('index', uploaded=1))
             
         except ClientError as e:
-            error_code = e.response['Error']['Code']
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
             logger.error(f'S3 upload failed: {error_code} - {e}')
             flash(f'Upload failed: {error_code}. Please try again.', 'error')
             return redirect(url_for('index'))

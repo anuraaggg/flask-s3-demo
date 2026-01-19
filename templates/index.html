@@ -40,11 +40,13 @@
   </script>
   {% endif %}
   <form method="POST" enctype="multipart/form-data">
+    {{ csrf_token() }}
     <input type="file" name="file" required>
     <button type="submit">Upload</button>
   </form>
 
   <h2>Uploaded Files</h2>
+  {% if items %}
   <table>
     <tr>
       <th>FileName</th>
@@ -59,5 +61,8 @@
     </tr>
     {% endfor %}
   </table>
+  {% else %}
+  <p style="color: #666; font-style: italic;">No files uploaded yet. Upload a file to get started.</p>
+  {% endif %}
 </body>
 </html>

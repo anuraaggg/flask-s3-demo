@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, redirect, url_for, flash
 from flask_wtf.csrf import CSRFProtect
+from flask_talisman import Talisman
 import boto3
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -16,6 +17,25 @@ app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_FILE_SIZE', 5242880))  # R
 
 # Setup CSRF protection
 csrf = CSRFProtect(app)
+
+# Setup security headers with Flask-Talisman
+Talisman(
+    app,
+    force_https=False,  # Set to True in production with HTTPS
+    strict_transport_security=True,
+    strict_transport_security_max_age=31536000,
+    content_security_policy={
+        'default-src': "'self'",
+        'style-src': "'self' 'unsafe-inline'",
+        'script-src': "'self'",
+        'img-src': "'self' data:",
+    },
+    content_security_policy_nonce_in=['script-src'],
+    x_frame_options='DENY',
+    x_content_type_options='nosniff',
+    x_xss_protection='1; mode=block',
+    referrer_policy='strict-origin-when-cross-origin'
+)
 
 # Setup logging with timestamps
 logging.basicConfig(
@@ -76,6 +96,19 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def format_bytes(size_bytes):
+    """Convert bytes to human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f'{size_bytes:.1f} {unit}'
+        size_bytes /= 1024
+    return f'{size_bytes:.1f} TB'
+
+
+# Register Jinja2 filter
+app.jinja_env.filters['format_bytes'] = format_bytes
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -107,26 +140,42 @@ def index():
             # Sanitize filename
             filename = secure_filename(uploaded_file.filename)
             
+            # Add timestamp to prevent duplicates
+            name, ext = os.path.splitext(filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            unique_filename = f'{name}_{timestamp}{ext}'
+            
             # Upload to S3
-            s3.upload_fileobj(uploaded_file, S3_BUCKET, filename)
-            logger.info(f'Successfully uploaded {filename} to S3 bucket {S3_BUCKET}')
+            s3.upload_fileobj(uploaded_file, S3_BUCKET, unique_filename)
+            logger.info(f'Successfully uploaded {unique_filename} to S3 bucket {S3_BUCKET}')
             
             # Store metadata in DynamoDB
             try:
                 table.put_item(
                     Item={
-                        'FileName': filename,
+                        'FileName': unique_filename,
                         'Size': file_size,
                         'UploadTime': datetime.now().isoformat()
                     }
                 )
-                logger.info(f'Stored metadata for {filename} in DynamoDB')
+                logger.info(f'Stored metadata for {unique_filename} in DynamoDB')
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+                if error_code == 'ResourceNotFoundException':
+                    error_msg = f'DynamoDB table "{DYNAMO_TABLE}" not found'
+                elif error_code == 'AccessDeniedException':
+                    error_msg = 'Permission denied: Cannot write to DynamoDB table'
+                else:
+                    error_msg = f'DynamoDB error: {error_code}'
+                logger.error(f'Failed to store metadata in DynamoDB: {error_msg}')
+                flash(f'File uploaded to S3 but failed to store metadata: {error_msg}', 'warning')
+                return redirect(url_for('index'))
             except Exception as e:
-                logger.error(f'Failed to store metadata in DynamoDB: {e}')
+                logger.error(f'Unexpected error storing metadata: {e}')
                 flash('File uploaded to S3 but failed to store metadata', 'warning')
                 return redirect(url_for('index'))
             
-            flash(f'File {filename} uploaded successfully', 'success')
+            flash(f'File uploaded successfully', 'success')
             return redirect(url_for('index', uploaded=1))
             
         except ClientError as e:
@@ -163,4 +212,12 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
+
+@app.errorhandler(413)
+def handle_request_too_large(e):
+    """Handle 413 Request Entity Too Large error."""
+    flash(f'File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024:.1f}MB', 'error')
+    logger.warning(f'Rejected upload: Request entity too large')
+    return redirect(url_for('index'))
 

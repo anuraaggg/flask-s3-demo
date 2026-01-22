@@ -59,7 +59,7 @@
     {% for item in items %}
     <tr>
       <td>{{ item.FileName }}</td>
-      <td>{{ item.Size }}</td>
+      <td>{{ item.Size | format_bytes }}</td>
       <td>{{ item.UploadTime }}</td>
     </tr>
     {% endfor %}

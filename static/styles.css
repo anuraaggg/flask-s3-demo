@@ -117,6 +117,26 @@ button:active {
     box-shadow: 0 4px 8px rgba(239,68,68,0.2);
 }
 
+.btn-primary {
+    background-color: var(--accent);
+    box-shadow: 0 2px 6px rgba(59,130,246,0.12);
+    text-decoration: none;
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-strong);
+    box-shadow: 0 4px 8px rgba(59,130,246,0.2);
+    text-decoration: none;
+    color: white;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;

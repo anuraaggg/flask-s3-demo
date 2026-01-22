@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash, send_file
 from flask_wtf.csrf import CSRFProtect
 from flask_talisman import Talisman
 from flask_limiter import Limiter
@@ -10,6 +10,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from werkzeug.utils import secure_filename
+from io import BytesIO
 
 load_dotenv()
 
@@ -275,5 +276,47 @@ def delete_file(filename):
     except Exception as e:
         logger.error(f'Unexpected error deleting file: {e}')
         flash('An unexpected error occurred', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/download/<filename>', methods=['GET'])
+@limiter.limit("20 per minute")
+def download_file(filename):
+    """Download file from S3."""
+    try:
+        # Validate filename to prevent directory traversal
+        if '/' in filename or '\\' in filename or '..' in filename:
+            logger.warning(f'Attempted directory traversal in download: {filename}')
+            flash('Invalid filename', 'error')
+            return redirect(url_for('index'))
+        
+        logger.info(f'Downloading file: {filename}')
+        
+        # Get file from S3
+        try:
+            s3_object = s3.get_object(Bucket=S3_BUCKET, Key=filename)
+            file_stream = BytesIO(s3_object['Body'].read())
+            logger.info(f'Successfully retrieved {filename} from S3')
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchKey':
+                logger.warning(f'File not found in S3: {filename}')
+                flash('File not found', 'error')
+            else:
+                logger.error(f'Failed to download {filename}: {error_code}')
+                flash(f'Download failed: {error_code}', 'error')
+            return redirect(url_for('index'))
+        
+        # Return file for download
+        return send_file(
+            file_stream,
+            download_name=filename,
+            as_attachment=True,
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        logger.error(f'Unexpected error downloading file: {e}')
+        flash('An unexpected error occurred during download', 'error')
         return redirect(url_for('index'))
 

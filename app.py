@@ -239,3 +239,41 @@ def handle_rate_limit(e):
     logger.warning(f'Rate limit exceeded for IP: {get_remote_address()}')
     return redirect(url_for('index')), 429
 
+
+@app.route('/delete/<filename>', methods=['POST'])
+@limiter.limit("10 per minute")
+def delete_file(filename):
+    """Delete file from S3 and DynamoDB."""
+    try:
+        # Validate filename to prevent directory traversal
+        if '/' in filename or '\\' in filename or '..' in filename:
+            flash('Invalid filename', 'error')
+            logger.warning(f'Attempted directory traversal: {filename}')
+            return redirect(url_for('index'))
+        
+        # Delete from S3
+        try:
+            s3.delete_object(Bucket=S3_BUCKET, Key=filename)
+            logger.info(f'Deleted {filename} from S3')
+        except ClientError as e:
+            logger.error(f'Failed to delete {filename} from S3: {e}')
+            flash('Failed to delete file from S3', 'error')
+            return redirect(url_for('index'))
+        
+        # Delete from DynamoDB
+        try:
+            table.delete_item(Key={'FileName': filename})
+            logger.info(f'Deleted metadata for {filename} from DynamoDB')
+        except ClientError as e:
+            logger.error(f'Failed to delete metadata for {filename}: {e}')
+            flash('File deleted from S3 but failed to remove metadata', 'warning')
+            return redirect(url_for('index'))
+        
+        flash(f'File {filename} deleted successfully', 'success')
+        return redirect(url_for('index'))
+        
+    except Exception as e:
+        logger.error(f'Unexpected error deleting file: {e}')
+        flash('An unexpected error occurred', 'error')
+        return redirect(url_for('index'))
+

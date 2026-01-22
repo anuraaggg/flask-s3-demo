@@ -1,6 +1,8 @@
 from flask import Flask, request, render_template, redirect, url_for, flash
 from flask_wtf.csrf import CSRFProtect
 from flask_talisman import Talisman
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import boto3
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -17,6 +19,13 @@ app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_FILE_SIZE', 5242880))  # R
 
 # Setup CSRF protection
 csrf = CSRFProtect(app)
+
+# Setup rate limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # Setup security headers with Flask-Talisman
 Talisman(
@@ -110,6 +119,7 @@ app.jinja_env.filters['format_bytes'] = format_bytes
 
 
 @app.route('/', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def index():
     if request.method == 'POST':
         try:
@@ -220,4 +230,12 @@ def handle_request_too_large(e):
     flash(f'File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024:.1f}MB', 'error')
     logger.warning(f'Rejected upload: Request entity too large')
     return redirect(url_for('index'))
+
+
+@app.errorhandler(429)
+def handle_rate_limit(e):
+    """Handle 429 Too Many Requests error."""
+    flash('Too many uploads. Please wait a minute before uploading again.', 'error')
+    logger.warning(f'Rate limit exceeded for IP: {get_remote_address()}')
+    return redirect(url_for('index')), 429
 
